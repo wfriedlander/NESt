@@ -67,11 +67,7 @@ private:
 
 private:
 	void RenderLine(word line);
-	void RenderLine2(word line);
 	word PatternTable(byte side, word tile, byte row);
-	std::tuple<byte, byte> NameTable(byte table, word tile);
-	std::tuple<byte, byte> NameTable2(byte table, word line, byte tile);
-	
 
 private:
 	Bus* mBus;
@@ -83,9 +79,6 @@ private:
 	ppustatus mStatusReg;
 	
 private:
-	word scroll_x = 0;
-	word scroll_y = 0;
-	
 	word mRegT;
 	word mRegV;
 	byte mRegX;
@@ -111,11 +104,8 @@ private:
 	word mZeroPixel = 0;
 	word mZeroLine = 0;
 
-	// FLIP THIS AT SOME POINT
-	// SCREEN IS WRITTEN LINE BY LINE;
-	// MAKE EACH LINE CONTIGUOUS
-	byte mScreen[256][240] = { 0 };
-	byte mDepth[256][240] = { 0 };
+	byte mScreen[240][256] = { 0 };
+	byte mDepth[240][256] = { 0 };
 
 };
 

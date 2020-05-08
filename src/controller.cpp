@@ -1,7 +1,5 @@
 #include "controller.h"
 
-#include <SFML/Window.hpp>
-
 #include <cstdio>
 
 
@@ -42,13 +40,16 @@ void Controller::RegisterWrite(byte value)
 void Controller::Latch()
 {
 	state0 = 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::F) ? 0x80 : 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::D) ? 0x40 : 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::RShift) ? 0x20 : 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::Enter) ? 0x10 : 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::Up) ? 0x08 : 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::Down) ? 0x04 : 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::Left) ? 0x02 : 0;
-	state0 |= sf::Keyboard::isKeyPressed(sf::Keyboard::Right) ? 0x01 : 0;
+	auto buttons = mInput->GetButtons();
+	
+	state0 |= buttons.a ? 0x80 : 0;
+	state0 |= buttons.b ? 0x40 : 0;
+	state0 |= buttons.select ? 0x20 : 0;
+	state0 |= buttons.start ? 0x10 : 0;
+	state0 |= buttons.up ? 0x08 : 0;
+	state0 |= buttons.down ? 0x04 : 0;
+	state0 |= buttons.left ? 0x02 : 0;
+	state0 |= buttons.right ? 0x01 : 0;
 }
+
 

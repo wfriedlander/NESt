@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cmath>
+#include <mutex>
 
 #include "nes.h"
 
@@ -12,6 +13,7 @@
 #include "SFML/Graphics.hpp"
 #include "SFML/Audio.hpp"
 #include "SFML/System.hpp"
+#include <SFML/Window.hpp>
 
 
 bool wait = false;
@@ -22,6 +24,14 @@ class KeyboardInput : public Input
 public:
 	const ButtonState& GetButtons()
 	{
+		state.a = sf::Keyboard::isKeyPressed(sf::Keyboard::F);
+		state.b = sf::Keyboard::isKeyPressed(sf::Keyboard::D);
+		state.select = sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+		state.start = sf::Keyboard::isKeyPressed(sf::Keyboard::Enter);
+		state.up = sf::Keyboard::isKeyPressed(sf::Keyboard::Up);
+		state.down = sf::Keyboard::isKeyPressed(sf::Keyboard::Down);
+		state.left = sf::Keyboard::isKeyPressed(sf::Keyboard::Left);
+		state.right = sf::Keyboard::isKeyPressed(sf::Keyboard::Right);
 		return state;
 	}
 
@@ -30,17 +40,69 @@ private:
 };
 
 
-class AudioDevice : public Audio
+class AudioDevice : public Audio, public sf::SoundStream
 {
 public:
-	void Update(const AudioBuffer& buffer)
+	AudioDevice() : mSamples(4096)
 	{
-
+		initialize(1, 48000);
+		//play();
+		time0 = std::chrono::high_resolution_clock::now();
 	}
+
+public:
+	void Update(const AudioBuffer& buffer) override
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+		if (finished)
+		{
+			mSamples.clear();
+			finished = false;
+		}
+			
+		
+		for (int i = 0; i < buffer.size(); i += 37)
+		{
+			sbyte sample = buffer[i];
+			//sample -= 8;
+			//std::cout << (int)buffer[i] << " " << (int)sample << "\n";
+			sample *= 2048;
+			//mSamples.push_back(sample);
+		}
+
+		//std::cout << mSamples.size() << "\n";
+	}
+
+	bool onGetData(Chunk& data) override
+	{
+		auto now = std::chrono::high_resolution_clock::now();
+		//std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(now - time0).count() << "\n";
+		//std::cout << mSamples.size() << "\n";
+		time0 = now;
+
+		std::lock_guard<std::mutex> lock(mutex);
+		data.samples = mSamples.data();
+		data.sampleCount = mSamples.size();
+		//std::cout << "ON GET DATA" << std::endl;
+		finished = true;
+		return true;
+	}
+
+	void onSeek(sf::Time timeOffset) override
+	{
+		//std::cout << "ON SEEK\n";
+	}
+
+private:
+	bool finished = false;
+	std::vector<sword> mSamples;
+	std::mutex mutex;
+	decltype(std::chrono::high_resolution_clock::now()) time0;
+	decltype(std::chrono::high_resolution_clock::now()) time1;
 };
 
 
-using ScreenBuffer = uint8_t[256][240];
+//using ScreenBuffer = uint8_t[256][240];
 
 class VideoDevice : public Video
 {
@@ -59,11 +121,11 @@ public:
 public:
 	void Update(const ScreenBuffer& buffer)
 	{
-		for (int x = 0; x < 256; x++)
+		for (int y = 0; y < 240; y++)
 		{
-			for (int y = 0; y < 240; y++)
+			for (int x = 0; x < 256; x++)
 			{
-				mImage.setPixel(x, y, palette[buffer[x][y]]);
+				mImage.setPixel(x, y, palette[buffer[y][x]]);
 			}
 		}
 		

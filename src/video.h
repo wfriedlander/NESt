@@ -3,7 +3,7 @@
 #include <cstdint>
 
 
-using ScreenBuffer = uint8_t[256][240];
+using ScreenBuffer = uint8_t[240][256];
 
 class Video
 {

@@ -38,7 +38,7 @@ void NES::Step()
 {
 	byte cycles = mCPU->Step();
 	mPPU->Execute(cycles * 3);
-	//mAPU->Execute(cycles);
+	mAPU->Execute(cycles);
 }
 
 void NES::FrameDone()

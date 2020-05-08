@@ -37,7 +37,7 @@ void PPU::Execute(word cycles)
 		mLineExecuted = true;
 		if (mLine < 240)
 		{
-			RenderLine2(mLine);
+			RenderLine(mLine);
 		}
 		else if (mLine == 241)
 		{
@@ -190,127 +190,7 @@ byte PPU::Read(word address)
 	return mBus->PpuRead(address);
 }
 
-//void PPU::RenderLine(word line)
-//{
-//	if (mMaskReg.sb)
-//	{
-//		//std::cout << (int)line << " " << (int)mControlReg.n << " " << (int)scroll_x << "\n";
-//
-//		// THIS ISN'T RIGHT, NEED TO BLANK OUT LEFT 8 PIXELS
-//		//byte start = mMaskReg.sb ? 0 : 1;
-//
-//		byte start = scroll_x & 0x7;
-//		for (int x = 0; x < 33; x++)
-//		{
-//			auto [n, a] = NameTable2(mControlReg.n, line, x);
-//			//auto [n, a] = NameTable(mControlReg.n, ((line & 0xFFF8) * 4) + x);
-//			word p = PatternTable(mControlReg.b, n, line & 0x7);
-//
-//			for (int px = 0; px < 8; px++)
-//			{
-//				byte color_index = (p >> ((7 - px) * 2)) & 0x3;
-//				byte palette_index = color_index ? a << 2 : 0;
-//				word color_addr = 0x3F00 | palette_index | color_index;
-//
-//				int x_adj = ((x * 8) + px) - (scroll_x & 0x7);
-//				if (x_adj >= 255)
-//				{
-//					break;
-//				}
-//				else if (x_adj >= 0)
-//				{
-//					mScreen[x_adj][line] = Read(color_addr) & 0x3F;
-//					mDepth[x_adj][line] = color_index;
-//				}
-//				//mScreen[(x * 8) + px][line] = Read(color_addr) & 0x3F;
-//			}
-//		}
-//	}
-//	//else
-//	//{
-//	//	byte bg_color = mBus->PpuRead(0x3F00) & 0x3F;
-//	//	//std::cout << (int)bg_color << "\n";
-//	//	for (int i = 0; i < 256; i++)
-//	//	{
-//	//		mScreen[i][line] = bg_color;
-//	//	}
-//	//}
-//
-//	if (mMaskReg.ss)
-//	{
-//		oam* primary = reinterpret_cast<oam*>(&mOAM);
-//		oam secondary[8];
-//		byte oam_pos = 0;
-//		bool zero = false;
-//
-//		for (byte i = 0; i < 64; i++)
-//		{
-//			if (primary[i].y < line && primary[i].y + 8 >= line)
-//			{
-//				if (oam_pos < 8)
-//				{
-//					if (i == 0)
-//					{
-//						zero = true;
-//					}
-//					secondary[oam_pos++] = primary[i];
-//				}
-//				else
-//				{
-//					mStatusReg.o = 1;
-//					break;
-//				}
-//			}
-//		}
-//
-//		for (byte i = 0; i < oam_pos; i++)
-//		{
-//			if (i > 0)
-//			{
-//				zero = false;
-//			}
-//			
-//			auto& sprite = secondary[i];
-//			int ypx = (line - sprite.y - 1) & 0x7;
-//			if (sprite.a & 0x80)
-//				ypx = 7 - ypx;
-//			word p = PatternTable(mControlReg.s, sprite.t, ypx);
-//			for (int px = 7; px >= 0; px--)
-//			{
-//				byte dx = sprite.a & 0x40 ? px : (7 - px);
-//				if (sprite.x + dx < 256)
-//				{
-//					byte color_index = (p >> (px * 2)) & 0x3;
-//					byte palette_index = (sprite.a & 0x3) << 2;
-//					word color_addr = 0x3F10 | palette_index | color_index;
-//
-//					bool opaque = color_index > 0;
-//					bool foreground = !(sprite.a & 0x20);
-//					bool background = mDepth[sprite.x + dx][line] > 0;
-//
-//					if ((foreground || !background) && opaque)
-//					//if (opaque)
-//					{
-//						mScreen[sprite.x + dx][line] = Read(color_addr) & 0x3F;
-//					}
-//
-//					//if (zero && opaque && background)
-//					if (zero && opaque)
-//					{
-//						mZeroPixel = sprite.x + px;
-//						mZeroLine = line;
-//						//if (mStatusReg.s == 0)
-//							//std::cout << "l: " << (int)line << "   "<< "p: " << (int)mZeroPixel << std::endl;
-//
-//						mStatusReg.s = 1;
-//					}
-//				}
-//			}
-//		}
-//	}
-//}
-
-void PPU::RenderLine2(word line)
+void PPU::RenderLine(word line)
 {
 	if (mMaskReg.sb)
 	{
@@ -338,8 +218,8 @@ void PPU::RenderLine2(word line)
 				int x_adj = (pixel + px);
 				if (x_adj >= 0 && x_adj < 256)
 				{
-					mScreen[x_adj][line] = Read(color_addr) & 0x3F;
-					mDepth[x_adj][line] = color_index;
+					mScreen[line][x_adj] = Read(color_addr) & 0x3F;
+					mDepth[line][x_adj] = color_index;
 				}
 			}
 
@@ -355,44 +235,6 @@ void PPU::RenderLine2(word line)
 
 			pixel += 8;
 		}
-
-
-
-		//for (int x = 0; x < 32; x++)
-		//{
-		//	word name_addr = 0x2000 | (mRegV & 0xFFF);
-		//	word attr_addr = 0x23C0 | (mRegV & 0x0C00) | ((mRegV >> 4) & 0x38) | ((mRegV >> 2) & 0x07);
-
-		//	byte name = Read(name_addr);
-		//	byte attr = Read(attr_addr);
-
-		//	byte aty = (mRegV >> 5) & 0x2;
-		//	byte atx = (mRegV >> 1) & 0x1;
-		//	byte a = (attr >> (2 * (aty | atx))) & 0x3;
-
-		//	word p = PatternTable(mControlReg.b, name, (mRegV >> 12) & 0x7);
-
-		//	for (int px = 0; px < 8; px++)
-		//	{
-		//		byte color_index = (p >> ((7 - px) * 2)) & 0x3;
-		//		byte palette_index = color_index ? a << 2 : 0;
-		//		word color_addr = 0x3F00 | palette_index | color_index;
-
-		//		int x_adj = ((x * 8) + px);
-		//		mScreen[x_adj][line] = Read(color_addr) & 0x3F;
-		//		mDepth[x_adj][line] = color_index;
-		//	}
-
-		//	if ((mRegV & 0x1F) == 31)
-		//	{
-		//		mRegV &= ~0x1F;
-		//		mRegV ^= 0x400;
-		//	}
-		//	else
-		//	{
-		//		mRegV += 1;
-		//	}
-		//}
 
 		if ((mRegV & 0x7000) != 0x7000)
 		{
@@ -468,19 +310,17 @@ void PPU::RenderLine2(word line)
 
 					bool opaque = color_index > 0;
 					bool foreground = !(sprite.a & 0x20);
-					bool background = mDepth[sprite.x + dx][line] > 0;
+					bool background = mDepth[line][sprite.x + dx] > 0;
 
 					if ((foreground || !background) && opaque)
 					{
-						mScreen[sprite.x + dx][line] = Read(color_addr) & 0x3F;
+						mScreen[line][sprite.x + dx] = Read(color_addr) & 0x3F;
 					}
 
-					if (zero && opaque && background && mZeroLine == 0)
-					//if (zero && opaque)
+					if (zero && opaque && background && !mStatusReg.s && mMaskReg.sb)
 					{
 						mZeroPixel = sprite.x + dx;
 						mZeroLine = line;
-						std::cout << (int)mZeroLine << " " << (int)mZeroPixel << "\n";
 						//mStatusReg.s = 1;
 					}
 				}
@@ -512,59 +352,4 @@ word PPU::PatternTable(byte side, word tile, byte row)
 	pattern |= (l & 0x02) << 1;
 	pattern |= (l & 0x01) << 0;
 	return pattern;
-}
-
-std::tuple<byte, byte> PPU::NameTable(byte table, word tile)
-{
-	word base = 0x2000 + (0x400 * table);
-	word at_base = base + 0x3C0;
-
-	byte row = (tile >> 4) & 0xF8;
-	byte col = (tile & 0x1F) >> 2;
-	byte at = Read(at_base + (row | col));
-
-	row = (tile >> 5) & 0x2;
-	col = (tile >> 1) & 0x1;
-	byte p = (at >> (2 * (row | col))) & 0x3;
-
-	return std::make_pair(Read(base + tile), p);
-}
-
-std::tuple<byte, byte> PPU::NameTable2(byte table, word line, byte tile)
-{
-	word base = 0x2000 + (0x400 * table);
-
-	tile += (scroll_x >> 3);
-	if (tile > 31)
-	{
-		base = (base + 0x400) & 0x2C00;
-		tile &= 0x1F;
-	}
-	
-	word at_base = base + 0x3C0;
-
-	// line / 8 (>> 3) gets y tile number
-	// y / 4 (>> 2) gets attribute table entry
-	// at * 8 gets address location for y
-	// combined that's >> 2 and mask at 111000
-	byte y = (line >> 2) & 0x38;
-
-	// tile number / 4 gets attribute table entry
-	// it's the low 3 bits of address so just mask it
-	byte x = (tile >> 2) & 0x07;
-
-	byte at = Read(at_base + (y | x));
-
-
-	// essentially divide tile by 2
-	// and look at low bit to get quadrant
-	y = (line >> 3) & 0x2;
-	x = (tile >> 1) & 0x1;
-	byte p = (at >> (2 * (y | x))) & 0x3;
-
-	// y tile is line >> 3, but address
-	// location is << 5, so << 2 with mask
-	word nt = ((line << 2) & 0xFFE0) | tile;
-
-	return std::make_pair(Read(base + nt), p);
 }

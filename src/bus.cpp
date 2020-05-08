@@ -29,16 +29,17 @@ void Bus::Reset()
 void Bus::FrameComplete()
 {
 	mNES->FrameDone();
+	mAPU->FrameDone();
 }
 
 void Bus::TriggerNMI()
 {
-	mCPU->SetNMI();
+	mCPU->NMI();
 }
 
 void Bus::TriggerIRQ()
 {
-	mCPU->SetIRQ();
+	mCPU->IRQ();
 }
 
 

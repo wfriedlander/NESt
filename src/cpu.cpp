@@ -95,23 +95,23 @@ void CPU::Log(Instruction& ins)
 
 byte CPU::Step()
 {
-	if (mNMI)
-	{
-		mNMI = false;
-		NMI();
-		return 7;
-	}
+	//if (mNMI)
+	//{
+	//	mNMI = false;
+	//	NMI();
+	//	return 7;
+	//}
 
-	if (mIRQ)
-	{
-		mIRQ = false;
-		IRQ();
-		return 7;
-	}
+	//if (mIRQ)
+	//{
+	//	mIRQ = false;
+	//	IRQ();
+	//	return 7;
+	//}
 
 	auto& instruction = opcode[Read(reg.pc)];
-	if (mLog)
-		Log(instruction);
+	//if (mLog)
+	//	Log(instruction);
 	reg.pc += 1;
 	byte cycles = instruction.cycles + ((this)->*(instruction.addr))(instruction.op);
 	total_cycles += cycles;
