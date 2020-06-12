@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-using AudioBuffer = std::vector<uint8_t>;
+using AudioBuffer = std::vector<float>;
 
 class Audio
 {

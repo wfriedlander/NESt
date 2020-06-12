@@ -43,12 +43,14 @@ void NES::Step()
 
 void NES::FrameDone()
 {
-	auto now = std::chrono::high_resolution_clock::now();
-	//std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(now - mLast).count() << std::endl;
-	auto elapsed = now - mLast;
+	auto elapsed = std::chrono::high_resolution_clock::now() - mLast;
 	std::this_thread::sleep_for(std::chrono::milliseconds(16) - elapsed);
+	auto e = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+	std::this_thread::sleep_for(std::chrono::microseconds(mMicro) - elapsed);
+	auto post = std::chrono::high_resolution_clock::now() - mLast;
+	auto p = std::chrono::duration_cast<std::chrono::microseconds>(post).count();
+	mMicro += (16666 - p);
 	mLast = std::chrono::high_resolution_clock::now();
-	
 }
 
 void NES::DebugKey(int key)

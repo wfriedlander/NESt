@@ -13,7 +13,8 @@
 #include "SFML/Graphics.hpp"
 #include "SFML/Audio.hpp"
 #include "SFML/System.hpp"
-#include <SFML/Window.hpp>
+#include "SFML/Window.hpp"
+#include "portaudio.h"
 
 
 bool wait = false;
@@ -40,66 +41,146 @@ private:
 };
 
 
-class AudioDevice : public Audio, public sf::SoundStream
+//class AudioDevice : public Audio, public sf::SoundStream
+//{
+//public:
+//	AudioDevice() : mSamples(4096)
+//	{
+//		initialize(1, 48000);
+//		//play();
+//		time0 = std::chrono::high_resolution_clock::now();
+//	}
+//
+//public:
+//	void Update(const AudioBuffer& buffer) override
+//	{
+//		std::lock_guard<std::mutex> lock(mutex);
+//		if (finished)
+//		{
+//			mSamples.clear();
+//			finished = false;
+//		}
+//			
+//		
+//		for (int i = 0; i < buffer.size(); i += 37)
+//		{
+//			sbyte sample = buffer[i];
+//			//sample -= 8;
+//			//std::cout << (int)buffer[i] << " " << (int)sample << "\n";
+//			sample *= 2048;
+//			//mSamples.push_back(sample);
+//		}
+//
+//		//std::cout << mSamples.size() << "\n";
+//	}
+//
+//	bool onGetData(Chunk& data) override
+//	{
+//		auto now = std::chrono::high_resolution_clock::now();
+//		//std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(now - time0).count() << "\n";
+//		//std::cout << mSamples.size() << "\n";
+//		time0 = now;
+//
+//		std::lock_guard<std::mutex> lock(mutex);
+//		data.samples = mSamples.data();
+//		data.sampleCount = mSamples.size();
+//		//std::cout << "ON GET DATA" << std::endl;
+//		finished = true;
+//		return true;
+//	}
+//
+//	void onSeek(sf::Time timeOffset) override
+//	{
+//		//std::cout << "ON SEEK\n";
+//	}
+//
+//private:
+//	bool finished = false;
+//	std::vector<sword> mSamples;
+//	std::mutex mutex;
+//	decltype(std::chrono::high_resolution_clock::now()) time0;
+//	decltype(std::chrono::high_resolution_clock::now()) time1;
+//};
+
+
+static int paCallback(const void*, void* buffer, unsigned long frames, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData);
+
+
+class PulseBackend : public Audio
 {
 public:
-	AudioDevice() : mSamples(4096)
+	PulseBackend()
 	{
-		initialize(1, 48000);
-		//play();
-		time0 = std::chrono::high_resolution_clock::now();
+		Pa_Initialize();
+		Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, 48000, 800, paCallback, this);
+		Play();
 	}
 
-public:
-	void Update(const AudioBuffer& buffer) override
+	~PulseBackend()
 	{
-		std::lock_guard<std::mutex> lock(mutex);
-		if (finished)
+		Pa_Terminate();
+	}
+
+	void Play()
+	{
+		last = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+		start = last;
+		Pa_StartStream(stream);
+	}
+
+	void Update(const AudioBuffer& buffer)
+	{
+		for (auto& sample : buffer)
 		{
-			mSamples.clear();
-			finished = false;
+			count -= 1;
+
+			if (count <= 0)
+			{
+				count += 37.2869375;
+				out_data[out_head] = sample;
+				out_head = (out_head + 1) & 0x3FFF;
+			}
 		}
-			
-		
-		for (int i = 0; i < buffer.size(); i += 37)
+	}
+
+	void Process(float* buffer, int samples)
+	{
+		for (int i = 0; i < samples; i++)
 		{
-			sbyte sample = buffer[i];
-			//sample -= 8;
-			//std::cout << (int)buffer[i] << " " << (int)sample << "\n";
-			sample *= 2048;
-			//mSamples.push_back(sample);
+			buffer[i] = out_data[out_tail++];
+			out_count -= 1;
+			out_tail &= 0x3FFF;
+			out_tail_count += 1;
 		}
-
-		//std::cout << mSamples.size() << "\n";
-	}
-
-	bool onGetData(Chunk& data) override
-	{
-		auto now = std::chrono::high_resolution_clock::now();
-		//std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(now - time0).count() << "\n";
-		//std::cout << mSamples.size() << "\n";
-		time0 = now;
-
-		std::lock_guard<std::mutex> lock(mutex);
-		data.samples = mSamples.data();
-		data.sampleCount = mSamples.size();
-		//std::cout << "ON GET DATA" << std::endl;
-		finished = true;
-		return true;
-	}
-
-	void onSeek(sf::Time timeOffset) override
-	{
-		//std::cout << "ON SEEK\n";
 	}
 
 private:
-	bool finished = false;
-	std::vector<sword> mSamples;
-	std::mutex mutex;
-	decltype(std::chrono::high_resolution_clock::now()) time0;
-	decltype(std::chrono::high_resolution_clock::now()) time1;
+	PaStream* stream;
+	float out_data[16384] = { 0 };
+	int out_head = 0;
+	int out_tail = 0;
+	int out_count = 0;
+	int out_head_count = 0;
+	int out_tail_count = 0;
+	long long last = 0;
+	long long start = 0;
+	int processed = 0;
+	int updated = 0;
+	double count = 0;
+	float last_sample = 5.0;
+	int last_count = 0;
+
 };
+
+
+static int paCallback(const void*, void* buffer, unsigned long frames, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData)
+{
+	PulseBackend* backend = (PulseBackend*)userData;
+	float* out = (float*)buffer;
+	backend->Process(out, frames);
+	return 0;
+}
+
 
 
 //using ScreenBuffer = uint8_t[256][240];
@@ -244,7 +325,7 @@ int main()
 	text.setOutlineThickness(1);
 	
 	KeyboardInput input;
-	AudioDevice audio;
+	PulseBackend audio;
 	VideoDevice video(&window, text);
 
 	NES nes(&video, &audio, &input);

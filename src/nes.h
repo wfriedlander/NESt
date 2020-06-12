@@ -50,6 +50,7 @@ private:
 	Input* mInput = nullptr;
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> mLast;
+	int mMicro = 16666;
 
 };
 
