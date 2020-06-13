@@ -41,66 +41,53 @@ private:
 };
 
 
-//class AudioDevice : public Audio, public sf::SoundStream
-//{
-//public:
-//	AudioDevice() : mSamples(4096)
-//	{
-//		initialize(1, 48000);
-//		//play();
-//		time0 = std::chrono::high_resolution_clock::now();
-//	}
-//
-//public:
-//	void Update(const AudioBuffer& buffer) override
-//	{
-//		std::lock_guard<std::mutex> lock(mutex);
-//		if (finished)
-//		{
-//			mSamples.clear();
-//			finished = false;
-//		}
-//			
-//		
-//		for (int i = 0; i < buffer.size(); i += 37)
-//		{
-//			sbyte sample = buffer[i];
-//			//sample -= 8;
-//			//std::cout << (int)buffer[i] << " " << (int)sample << "\n";
-//			sample *= 2048;
-//			//mSamples.push_back(sample);
-//		}
-//
-//		//std::cout << mSamples.size() << "\n";
-//	}
-//
-//	bool onGetData(Chunk& data) override
-//	{
-//		auto now = std::chrono::high_resolution_clock::now();
-//		//std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(now - time0).count() << "\n";
-//		//std::cout << mSamples.size() << "\n";
-//		time0 = now;
-//
-//		std::lock_guard<std::mutex> lock(mutex);
-//		data.samples = mSamples.data();
-//		data.sampleCount = mSamples.size();
-//		//std::cout << "ON GET DATA" << std::endl;
-//		finished = true;
-//		return true;
-//	}
-//
-//	void onSeek(sf::Time timeOffset) override
-//	{
-//		//std::cout << "ON SEEK\n";
-//	}
-//
-//private:
-//	bool finished = false;
-//	std::vector<sword> mSamples;
-//	std::mutex mutex;
-//	decltype(std::chrono::high_resolution_clock::now()) time0;
-//	decltype(std::chrono::high_resolution_clock::now()) time1;
-//};
+
+class RingBuffer
+{
+public:
+	bool Push(float value)
+	{
+		if (!Full())
+		{
+			buffer[head] = value;
+			head = (head + 1) & 0x1FFF;
+			count += 1;
+			return true;
+		}
+		
+		return false;
+	}
+
+	float Pop()
+	{
+		if (!Empty())
+		{
+			auto v = buffer[tail];
+			tail = (tail + 1) & 0x1FFF;
+			count -= 1;
+			return v;
+		}
+
+		return 0.0;
+	}
+	
+	bool Empty()
+	{
+		return count == 0;
+	}
+
+	bool Full()
+	{
+		return count == 8192;
+	}
+
+private:
+	float buffer[8192] = { 0.0 };
+	int head = 0;
+	int tail = 0;
+	int count = 0;
+};
+
 
 
 static int paCallback(const void*, void* buffer, unsigned long frames, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData);
@@ -137,8 +124,7 @@ public:
 			if (count <= 0)
 			{
 				count += 37.2869375;
-				out_data[out_head] = sample;
-				out_head = (out_head + 1) & 0x3FFF;
+				ring.Push(sample);
 			}
 		}
 	}
@@ -147,21 +133,19 @@ public:
 	{
 		for (int i = 0; i < samples; i++)
 		{
-			buffer[i] = out_data[out_tail++];
-			out_count -= 1;
-			out_tail &= 0x3FFF;
-			out_tail_count += 1;
+			buffer[i] = ring.Pop();
 		}
 	}
 
 private:
 	PaStream* stream;
-	float out_data[16384] = { 0 };
-	int out_head = 0;
-	int out_tail = 0;
-	int out_count = 0;
-	int out_head_count = 0;
-	int out_tail_count = 0;
+	RingBuffer ring;
+	//float out_data[16384] = { 0 };
+	//int out_head = 0;
+	//int out_tail = 0;
+	//int out_count = 0;
+	//int out_head_count = 0;
+	//int out_tail_count = 0;
 	long long last = 0;
 	long long start = 0;
 	int processed = 0;
@@ -329,8 +313,8 @@ int main()
 	VideoDevice video(&window, text);
 
 	NES nes(&video, &audio, &input);
-	//nes.LoadGame("donkey_kong.nes");
-	nes.LoadGame("Super_mario_brothers.nes");
+	nes.LoadGame("donkey_kong.nes");
+	//nes.LoadGame("Super_mario_brothers.nes");
 
 	
 
